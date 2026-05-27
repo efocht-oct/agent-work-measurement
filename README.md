@@ -32,7 +32,7 @@ pip install psutil
 Verify that the profiling harness and baseline configurations are functional:
 
 ```python
-from lib.harness import MeasurementSession
+from lib.harness import GaugeSession
 from lib.baselines import SPEC_CPU_2017
 
 print("Harness & baselines initialized successfully.")
@@ -45,7 +45,7 @@ print("Harness & baselines initialized successfully.")
 ```text
 agent-gauge/
 ├── lib/
-│   ├── harness.py       # MeasurementSession: instrumented context managers
+│   ├── harness.py       # GaugeSession: instrumented context managers
 │   ├── baselines.py     # Hardware baselines (SPEC CPU 2017, GPU FLOPS, LLM parameters)
 │   └── model.py         # Analytical model (decompose, standardize_to_cpu_equivalent)
 ├── tasks/               # Three non-trivial reference tasks implemented in Python & C++
@@ -73,7 +73,7 @@ AgentGauge operates by capturing an execution trace tree during an agent session
                |             |             |             |
                v             v             v             v
        +-----------------------------------------------------------+
-       |               MeasurementSession (harness.py)             |
+       |               GaugeSession (harness.py)             |
        |                                                           |
        | Tracks: wall_clock, user_cpu, system_cpu, RSS, I/O,       |
        |         latency, model, prompt_tokens, completion_tokens  |
@@ -130,11 +130,11 @@ AgentGauge operates by capturing an execution trace tree during an agent session
 The following example demonstrates how a mixed local/remote agent trace is decomposed and normalized:
 
 ```python
-from lib.harness import MeasurementSession
+from lib.harness import GaugeSession
 from lib.model import analyse
 
 # 1. Profile the session
-with MeasurementSession(name="agent-session") as session:
+with GaugeSession(name="agent-session") as session:
     # Measure a local CPU tool call
     with session.cpu_call("compile_and_test", category="subprocess"):
         # Local system compilations, tests, and file system tasks are tracked here

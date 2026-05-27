@@ -114,9 +114,9 @@ Each trace is a JSON-serializable tree. The root has type `"session"`. Children 
 
 ```python
 # Key API
-from lib.harness import MeasurementSession
+from lib.harness import GaugeSession
 
-with MeasurementSession(name="task1_dijkstra") as session:
+with GaugeSession(name="task1_dijkstra") as session:
     # Wrap a CPU tool call
     with session.cpu_call("read_graph", category="file_read") as node:
         data = read_graph("input/graph.csv")
@@ -349,7 +349,7 @@ def test_cpp_output_matches_python():
     ...
 
 def test_harness_records_cpu_time():
-    with MeasurementSession(name="test") as session:
+    with GaugeSession(name="test") as session:
         with session.cpu_call("dijkstra"):
             run_dijkstra()
     cpu_nodes = [n for n in session.flattened() if n.node_type == "cpu"]
@@ -365,7 +365,7 @@ def test_harness_records_cpu_time():
 | # | Task | Assignee | Output |
 |---|------|----------|--------|
 | 1.1 | Create repo skeleton: directory structure, `__init__.py` files, `run_all.sh`, initial `README.md` | Coder | File tree exists, empty files in place |
-| 1.2 | Implement `lib/harness.py`: MeasurementSession, cpu_call, llm_call context managers, trace tree, summary, JSON serialization | Coder | Library usable |
+| 1.2 | Implement `lib/harness.py`: GaugeSession, cpu_call, llm_call context managers, trace tree, summary, JSON serialization | Coder | Library usable |
 | 1.3 | Implement `lib/baselines.py`: SPEC CPU 2017 rates, GPU specs, LLM FLOP/cost data | Coder | Dict-based lookup + formula functions |
 
 ### Phase 2: Tasks + Model (depends on Phase 1)
@@ -413,7 +413,7 @@ After each phase:
 # Phase 1 verification
 cd /home/hush/agent-work-measurement
 find . -type f | grep -v .git | sort
-python3 -c "from lib.harness import MeasurementSession; print('harness OK')"
+python3 -c "from lib.harness import GaugeSession; print('harness OK')"
 python3 -c "from lib.baselines import SPEC_CPU_2017; print('baselines OK')"
 
 # Phase 2 verification

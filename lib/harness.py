@@ -1,6 +1,6 @@
 """Measurement harness for the Agent Work Measurement project.
 
-Provides a MeasurementSession class that acts as a context manager.
+Provides a GaugeSession class that acts as a context manager.
 Inside a session, individual tool calls and LLM interactions are wrapped
 with :meth:`cpu_call` and :meth:`llm_call` context managers.  Each wrapped
 call records wall-clock time, CPU time, RSS, I/O, and (for LLM calls)
@@ -123,15 +123,15 @@ class TraceNode:
 
 
 # ---------------------------------------------------------------------------
-# MeasurementSession
+# GaugeSession
 # ---------------------------------------------------------------------------
 
-class MeasurementSession:
+class GaugeSession:
     """Context-managed measurement session.
 
     Usage::
 
-        with MeasurementSession(name="my-task") as session:
+        with GaugeSession(name="my-task") as session:
             with session.cpu_call("read_graph", category="file_read"):
                 read_graph("input/graph.csv")
             with session.llm_call("gpt-4o", "explain your approach") as node:
@@ -157,7 +157,7 @@ class MeasurementSession:
 
     # -- context manager -----------------------------------------------------
 
-    def __enter__(self) -> "MeasurementSession":
+    def __enter__(self) -> "GaugeSession":
         self._start_wall = time.perf_counter()
         self._io_start = _read_proc_io()
         return self
@@ -290,22 +290,22 @@ class MeasurementSession:
         return json.dumps(self.to_dict(), indent=indent)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MeasurementSession":
-        """Deserialise a MeasurementSession from a dict."""
+    def from_dict(cls, data: Dict[str, Any]) -> "GaugeSession":
+        """Deserialise a GaugeSession from a dict."""
         session = cls(name=data.get("name", "restored"))
         session._root = _dict_to_node(data)
         return session
 
     @classmethod
-    def from_json(cls, json_str: str) -> "MeasurementSession":
-        """Deserialise a MeasurementSession from a JSON string."""
+    def from_json(cls, json_str: str) -> "GaugeSession":
+        """Deserialise a GaugeSession from a JSON string."""
         return cls.from_dict(json.loads(json_str))
 
     def serialize(self, indent: int = 2) -> str:
         """Alias for :meth:`to_json`."""
         return self.to_json(indent=indent)
 
-    def deserialize(self, json_str: str) -> "MeasurementSession":
+    def deserialize(self, json_str: str) -> "GaugeSession":
         """Alias for :meth:`from_json`."""
         return self.from_json(json_str)
 

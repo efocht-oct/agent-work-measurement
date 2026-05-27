@@ -1,4 +1,4 @@
-"""Tests for lib/harness.py - the MeasurementSession harness."""
+"""Tests for lib/harness.py - the GaugeSession harness."""
 
 import json
 import threading
@@ -19,9 +19,9 @@ def _dummy_work():
 
 
 def test_cpu_call_tracks_time():
-    from lib.harness import MeasurementSession
+    from lib.harness import GaugeSession
 
-    with MeasurementSession(name="cpu_track") as session:
+    with GaugeSession(name="cpu_track") as session:
         with session.cpu_call("work", category="compute") as node:
             _dummy_work()
 
@@ -33,9 +33,9 @@ def test_cpu_call_tracks_time():
 
 
 def test_llm_call_tracks_tokens():
-    from lib.harness import MeasurementSession
+    from lib.harness import GaugeSession
 
-    with MeasurementSession(name="llm_track") as session:
+    with GaugeSession(name="llm_track") as session:
         with session.llm_call(
             model="gpt-4o",
             prompt="test prompt",
@@ -58,9 +58,9 @@ def test_llm_call_tracks_tokens():
 
 
 def test_nested_calls():
-    from lib.harness import MeasurementSession
+    from lib.harness import GaugeSession
 
-    with MeasurementSession(name="nested") as session:
+    with GaugeSession(name="nested") as session:
         with session.cpu_call("outer", category="io") as outer_node:
             with session.cpu_call("inner", category="compute") as inner_node:
                 _dummy_work()
@@ -84,9 +84,9 @@ def test_nested_calls():
 
 
 def test_summary_aggregates():
-    from lib.harness import MeasurementSession
+    from lib.harness import GaugeSession
 
-    with MeasurementSession(name="agg") as session:
+    with GaugeSession(name="agg") as session:
         with session.cpu_call("a", category="x"):
             time.sleep(0.01)
         with session.cpu_call("b", category="y"):
@@ -112,9 +112,9 @@ def test_summary_aggregates():
 
 
 def test_trace_serialization():
-    from lib.harness import MeasurementSession
+    from lib.harness import GaugeSession
 
-    with MeasurementSession(name="serialize") as session:
+    with GaugeSession(name="serialize") as session:
         with session.cpu_call("read_file", category="file_read"):
             time.sleep(0.01)
         with session.llm_call(
@@ -131,21 +131,21 @@ def test_trace_serialization():
     assert "children" in data
 
     # Deserialize
-    restored = MeasurementSession.from_dict(data)
+    restored = GaugeSession.from_dict(data)
     restored_nodes = restored.flattened()
     assert restored._root.name == "serialize"
     assert len([n for n in restored_nodes if n.node_type == "cpu"]) == 2
     assert len([n for n in restored_nodes if n.node_type == "llm"]) == 1
 
     # Round-trip through JSON string too
-    restored2 = MeasurementSession.from_json(json_str)
+    restored2 = GaugeSession.from_json(json_str)
     assert restored2._root.name == "serialize"
 
 
 def test_io_tracking():
-    from lib.harness import MeasurementSession
+    from lib.harness import GaugeSession
 
-    with MeasurementSession(name="io_track") as session:
+    with GaugeSession(name="io_track") as session:
         with session.cpu_call("read_graph", category="file_read"):
             with open(TEST_DATA, "r") as f:
                 _ = f.read()
@@ -158,9 +158,9 @@ def test_io_tracking():
 
 
 def test_concurrent_calls():
-    from lib.harness import MeasurementSession
+    from lib.harness import GaugeSession
 
-    with MeasurementSession(name="concurrent") as session:
+    with GaugeSession(name="concurrent") as session:
         threads = []
         for i in range(4):
             t = threading.Thread(
@@ -182,9 +182,9 @@ def _run_cpu_call(session, name):
 
 
 def test_session_context_manager():
-    from lib.harness import MeasurementSession
+    from lib.harness import GaugeSession
 
-    with MeasurementSession(name="session_cm") as session:
+    with GaugeSession(name="session_cm") as session:
         pass
 
     assert session._root.wall_clock > 0

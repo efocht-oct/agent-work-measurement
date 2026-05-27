@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from lib.harness import TraceNode, MeasurementSession
+from lib.harness import TraceNode, GaugeSession
 from lib.baselines import get_baseline, flops_per_token_for_model, SPEC_CPU_2017
 
 
@@ -45,13 +45,13 @@ _RATIO_BOUNCED = 0.5  # tolerance band around 1.0
 # ---------------------------------------------------------------------------
 
 def decompose(
-    trace: MeasurementSession | Dict[str, Any],
+    trace: GaugeSession | Dict[str, Any],
     rtt_estimate: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Decompose a measurement trace into cpu_work, ai_work, and wait_time.
 
     Args:
-        trace: A MeasurementSession or a plain dict (from
+        trace: A GaugeSession or a plain dict (from
             ``session.to_dict()``).
         rtt_estimate: Optional round-trip time to the LLM API server
             in seconds.  If given, the AI compute time for each LLM node
@@ -69,14 +69,14 @@ def decompose(
         - ``llm_nodes`` (list): per-node breakdown of LLM contribution.
         - ``cpu_nodes`` (list): per-node breakdown of CPU contribution.
     """
-    if isinstance(trace, MeasurementSession):
+    if isinstance(trace, GaugeSession):
         nodes = trace.flattened()
         root = trace._root
     elif isinstance(trace, dict):
         nodes = _flat_from_dict(trace)
         root = trace
     else:
-        raise TypeError("trace must be a MeasurementSession or a dict")
+        raise TypeError("trace must be a GaugeSession or a dict")
 
     # Find root to get total session wall-clock.
     total_wall_clock = 0.0
@@ -283,14 +283,14 @@ def apply_network_correction(
 # ---------------------------------------------------------------------------
 
 def analyse(
-    trace: MeasurementSession | Dict[str, Any],
+    trace: GaugeSession | Dict[str, Any],
     rtt_estimate: Optional[float] = None,
     baseline_key: str = "float_base",
 ) -> Dict[str, Any]:
     """Full analysis pipeline: decompose + standardize + ratio.
 
     Args:
-        trace: MeasurementSession or dict.
+        trace: GaugeSession or dict.
         rtt_estimate: RTT in seconds.
         baseline_key: SPEC baseline key.
 

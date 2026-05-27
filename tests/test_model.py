@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 import pytest
 
-from lib.harness import MeasurementSession, TraceNode
+from lib.harness import GaugeSession, TraceNode
 from lib.model import (
     analyse,
     apply_network_correction,
@@ -24,9 +24,9 @@ from lib.model import (
 # ---------------------------------------------------------------------------
 
 
-def _build_flat_session() -> MeasurementSession:
+def _build_flat_session() -> GaugeSession:
   """Build a tiny measurement session with 1 CPU node + 1 LLM node."""
-  session = MeasurementSession(name="test")
+  session = GaugeSession(name="test")
   # Add a CPU child to the root
   cpu_node = TraceNode(name="cpu_task", node_type="cpu", category="compute",
                        user_cpu=1.5, system_cpu=0.3, wall_clock=2.0)
@@ -136,7 +136,7 @@ class TestDecompose:
             decompose(None)
 
     def test_empty_session(self):
-        session = MeasurementSession(name="empty")
+        session = GaugeSession(name="empty")
         session._root.wall_clock = 0.0
         result = decompose(session)
         assert result["cpu_work"] == 0.0
