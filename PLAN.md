@@ -121,7 +121,7 @@ with GaugeSession(name="task1_dijkstra") as session:
     with session.cpu_call("read_graph", category="file_read") as node:
         data = read_graph("input/graph.csv")
     # Wrap an LLM call
-    with session.llm_call(model="gpt-4o", prompt="explain your approach") as llm_node:
+    with session.llm_call(model="gemini-1.5-pro", prompt="explain your approach") as llm_node:
         response = call_llm(llm_node.prompt)
     # Produce a summary
     summary = session.summary()  # dict with aggregated metrics

@@ -134,7 +134,7 @@ class GaugeSession:
         with GaugeSession(name="my-task") as session:
             with session.cpu_call("read_graph", category="file_read"):
                 read_graph("input/graph.csv")
-            with session.llm_call("gpt-4o", "explain your approach") as node:
+            with session.llm_call("gemini-1.5-pro", "explain your approach") as node:
                 node.prompt_tokens = 100
                 node.completion_tokens = 50
                 response = call_llm(node.prompt)
@@ -382,7 +382,7 @@ class GaugeSession:
         Records wall-clock latency, tokens, and cost estimate.
 
         Args:
-            model: Model name (e.g. ``"gpt-4o"``).
+            model: Model name (e.g. ``"gemini-1.5-pro"``).
             prompt: The prompt text.
             prompt_tokens: Number of input tokens.
             completion_tokens: Number of output tokens.

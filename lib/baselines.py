@@ -127,6 +127,12 @@ LLM_MODELS: Dict[str, Dict[str, Any]] = {
         "cost_input_usd_per_m": 0.15,
         "cost_output_usd_per_m": 0.60,
     },
+    "gemini-1.5-pro": {
+        "name": "Gemini 1.5 Pro",
+        "num_params": 1e12,           # estimated parameters (1T+ MoE)
+        "cost_input_usd_per_m": 1.25, # $1.25 / 1M input tokens
+        "cost_output_usd_per_m": 5.00,# $5.00 / 1M output tokens
+    },
     "claude-3.5-sonnet": {
         "name": "Claude 3.5 Sonnet",
         "num_params": 20e9,
@@ -235,12 +241,12 @@ def reference_agent_session(seq_length: int = 4096) -> Dict[str, Any]:
     Assumptions:
     - 50 LLM calls per session.
     - 2 048 prompt tokens + 512 completion tokens per call.
-    - Using GPT-4o as the representative model.
+    - Using Gemini 1.5 Pro as the representative model.
     - 200 000 lines of code processed at ~1 ms per line (CPU parse/compile).
 
     Returns a dict with flops and CPU-work estimates.
     """
-    model_key = "gpt-4o"
+    model_key = "gemini-1.5-pro"
     prompt_tokens = 2048
     completion_tokens = 512
     n_calls = 50

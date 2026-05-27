@@ -17,7 +17,7 @@ def main():
         run_task(session, "task1_dijkstra", ["python3", "tasks/task1_dijkstra/python/solve.py", "tasks/task1_dijkstra/input/graph.csv", "0", "4"])
         
         print("Simulating LLM call 1...")
-        with session.llm_call("gpt-4o", prompt="Analyze task 1", prompt_tokens=100, completion_tokens=50) as node:
+        with session.llm_call("gemini-1.5-pro", prompt="Analyze task 1", prompt_tokens=100, completion_tokens=50) as node:
             time.sleep(1) # simulate inference and network
             
         # Task 2
@@ -25,7 +25,7 @@ def main():
         run_task(session, "task2_toc_generator", ["python3", "tasks/task2_toc_generator/python/solve.py", "tasks/task2_toc_generator/input/sample_docs/README.md"])
         
         print("Simulating LLM call 2...")
-        with session.llm_call("gpt-4o", prompt="Analyze task 2", prompt_tokens=150, completion_tokens=75) as node:
+        with session.llm_call("gemini-1.5-pro", prompt="Analyze task 2", prompt_tokens=150, completion_tokens=75) as node:
             time.sleep(1.5)
             
         # Task 3
@@ -33,7 +33,7 @@ def main():
         run_task(session, "task3_log_analyzer", ["python3", "tasks/task3_log_analyzer/python/solve.py", "tasks/task3_log_analyzer/input/log.jsonl"])
         
         print("Simulating LLM call 3...")
-        with session.llm_call("gpt-4o", prompt="Analyze task 3", prompt_tokens=200, completion_tokens=100) as node:
+        with session.llm_call("gemini-1.5-pro", prompt="Analyze task 3", prompt_tokens=200, completion_tokens=100) as node:
             time.sleep(2.0)
             
     print("\nMeasurement complete. Analyzing results...\n")

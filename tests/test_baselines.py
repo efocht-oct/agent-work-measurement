@@ -66,9 +66,9 @@ def test_flops_formula_consistency():
 
 def test_cost_per_call():
     """cost_per_call should return positive value for known models."""
-    cost = cost_per_call("gpt-4o", 100, 50)
+    cost = cost_per_call("gemini-1.5-pro", 100, 50)
     assert cost > 0, "Cost should be positive"
-    cost_zero = cost_per_call("gpt-4o", 0, 0)
+    cost_zero = cost_per_call("gemini-1.5-pro", 0, 0)
     assert cost_zero == 0.0
 
 

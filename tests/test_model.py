@@ -34,7 +34,7 @@ def _build_flat_session() -> GaugeSession:
   session._root.children.append(cpu_node)
   cpu_node._parent = session._root
   # Add an LLM child to the CPU node (use a known model name for FLOP estimation)
-  llm_node = TraceNode(name="gpt-4o", node_type="llm", model="gpt-4o",
+  llm_node = TraceNode(name="gemini-1.5-pro", node_type="llm", model="gemini-1.5-pro",
                        wall_clock=3.0, prompt_tokens=500, completion_tokens=200,
                        latency=3.0)
   llm_node.total_tokens = llm_node.prompt_tokens + llm_node.completion_tokens
@@ -120,8 +120,8 @@ class TestDecompose:
         session = _build_flat_session()
         result = decompose(session)
         assert len(result["llm_nodes"]) == 1
-        assert result["llm_nodes"][0]["name"] == "gpt-4o"
-        assert result["llm_nodes"][0]["model"] == "gpt-4o"
+        assert result["llm_nodes"][0]["name"] == "gemini-1.5-pro"
+        assert result["llm_nodes"][0]["model"] == "gemini-1.5-pro"
         assert result["llm_nodes"][0]["total_tokens"] == 700
 
     def test_cpu_nodes_breakdown(self):

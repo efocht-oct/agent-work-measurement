@@ -37,7 +37,7 @@ def test_llm_call_tracks_tokens():
 
     with GaugeSession(name="llm_track") as session:
         with session.llm_call(
-            model="gpt-4o",
+            model="gemini-1.5-pro",
             prompt="test prompt",
             prompt_tokens=10,
             completion_tokens=5,
@@ -53,7 +53,7 @@ def test_llm_call_tracks_tokens():
     assert node.completion_tokens == 5
     assert node.total_tokens == 15
     assert node.latency > 0
-    assert node.model == "gpt-4o"
+    assert node.model == "gemini-1.5-pro"
     assert node.cost_estimate > 0
 
 
@@ -92,7 +92,7 @@ def test_summary_aggregates():
         with session.cpu_call("b", category="y"):
             time.sleep(0.01)
         with session.llm_call(
-            "gpt-4o", "p", prompt_tokens=10, completion_tokens=20,
+            "gemini-1.5-pro", "p", prompt_tokens=10, completion_tokens=20,
         ):
             time.sleep(0.01)
 
@@ -118,7 +118,7 @@ def test_trace_serialization():
         with session.cpu_call("read_file", category="file_read"):
             time.sleep(0.01)
         with session.llm_call(
-            "gpt-4o", "plan", prompt_tokens=50, completion_tokens=30,
+            "gemini-1.5-pro", "plan", prompt_tokens=50, completion_tokens=30,
         ):
             time.sleep(0.01)
         with session.cpu_call("write_file", category="file_write"):

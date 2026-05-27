@@ -145,7 +145,7 @@ with GaugeSession(name="agent-session") as session:
         time.sleep(0.1) # Simulate tool execution
 
     # Measure a remote LLM generative task
-    with session.llm_call(model="gpt-4o", prompt_tokens=500, completion_tokens=200) as node:
+    with session.llm_call(model="gemini-1.5-pro", prompt_tokens=500, completion_tokens=200) as node:
         # Remote LLM parameters, network latency, and tokens are tracked here
         node.latency = 2.5 # Simulate remote API round-trip
 
