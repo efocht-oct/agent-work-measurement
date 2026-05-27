@@ -1,194 +1,182 @@
-Agent Work Measurement
-======================
+# AgentGauge: Agentic Work Profiler & FLOP Estimator
 
-A measurement framework that estimates the breakdown of CPU work versus
-AI/LLM work spent during an agentic coding session.  Track wall-clock
-time, CPU time, memory, I/O for tool calls, and token usage, latency,
-and compute estimates for LLM portions.  Three reference tasks exercise
-multiple tool-call categories.
+An analytical framework and instrumented harness for estimating, measuring, and standardizing the breakdown of **non-AI CPU work** versus **AI/LLM work** spent during an agentic coding session.
 
-Quick start
------------
+---
 
-::
+## 💡 Simulation vs. Actual Agentic Work: What is AgentGauge?
 
-  pip install psutil
-  cd agent-work-measurement
-  python -c "from lib.harness import MeasurementSession; print('harness OK')"
-  python -c "from lib.baselines import SPEC_CPU_2017; print('baselines OK')"
+**AgentGauge is not an autonomous coding agent.** It does not autonomously write code, search the web, or run git commands. 
 
-Project layout
---------------
+Instead, AgentGauge is a **measurement harness and analytical model** designed to be integrated into agentic systems (such as Claude Code, Codex, or custom developer loops). It profiles, logs, and analyzes where resources are actually spent during an agent session. 
 
-::
+### Why do we need this?
+When an agent performs a software engineering task, it spends:
+1. **Local/Non-AI CPU work**: Compiling code, running tests, traversing file systems, executing graph algorithms, parsing logs, and parsing syntax.
+2. **Remote AI/LLM work**: Forward passes through massive transformer architectures hosted on high-performance GPU/TPU clusters.
 
-  agent-work-measurement/
-  ├── lib/
-  │   ├── harness.py       # MeasurementSession, cpu_call, llm_call
-  │   ├── baselines.py     # SPEC CPU 2017, GPU specs, LLM metadata
-  │   └── model.py         # decompose, standardize, ratio
-  ├── tasks/               # 3 reference tasks (Python + C++)
-  │   ├── 1-dijkstra/      # Shortest-path on a weighted graph
-  │   ├── 2-toc-generator/ # Markdown TOC extractor
-  │   └── 3-log-analyzer/  # JSON-lines log statistics
-  ├── tests/               # 66 pytest tests
-  └── docs/                # Methodology and analysis notes
+Standard profiling tools (like `cProfile` or `time`) only see the local Python/C++ process. They treat remote LLM calls as idle network waiting time. 
 
-Architecture
-------------
+**AgentGauge solves this** by capturing both local hardware-level metrics (via `psutil` and CPU/system clocks) and LLM call parameters (token counts, latency, and models). It then uses **algebraic hardware baselines** (SPEC CPU 2017 rates and GPU TFLOPS ratings) to project remote LLM work into a standardized, equivalent "CPU-seconds" metric. This allows a true, apples-to-apples comparison of the computational work done by the AI versus the local system.
 
-Here is the high-level architecture of how raw tool-call traces are
-converted into a CPU-vs-AI work breakdown:
+---
 
-  +-----------------------------------------------------------------+
-  |  Agentic Coding Session                                         |
-  |                                                                 |
-  |  [Tool Call]  [LLM Call]  [Tool Call]  [LLM Call]  [IO Call]   |
-  |     |             |             |             |            |    |
-  +-----+-------------+-------------+-------------+------------+----+
-                                |
-                        +-------v--------+
-                        | Measurement-   |
-                        | Session (harn.)|  -- tracks per-node:
-                        |                |      wall_clock, user_cpu,
-                        |                |      system_cpu, rss, io,
-                        |                |      tokens, latency, cost
-                        +-------+--------+
-                                |
-                        +-------v--------+
-                        | Trace tree     |  -- nested TraceNode graph
-                        | (flattened)    |      with parent/child refs
-                        +-------+--------+
-                                |
-                        +-------v--------+
-                        |   decompose()  |  -- splits into:
-                        |   (model.py)   |      cpu_nodes, llm_nodes,
-                        |                |      wait_nodes
-                        +-------+--------+
-                                |
-              +-----------------+-----------------+
-              |                                   |
-    +---------v----------+              +---------v----------+
-    | standardize_to_    |              | ai_cpu_ratio()     |
-    | cpu_equivalent()   |              |                    |
-    |                    |              |  ai_heavy          |
-    |  cpu_work =        |              |  ai_heavy          |
-    |    total_cpu_secs  |              |  cpu_heavy         |
-    |                    |              |  balanced          |
-    |  ai_work =         |              +--------------------+
-    |    FLOP_estimate / |
-    |    baseline_flops  |
-    +--------------------+
+## 🚀 Quick Start
 
-Data flow (single session):
+Ensure you have the required system dependencies:
 
-  cpu_call("read_file")    --> 0.02s wall, 0.015s user_cpu, 512KB io
-  llm_call("gpt-4o")       --> 2.5s wall, 0 tokens prompt, 500 tokens completion
-  cpu_call("dijkstra")     --> 0.10s wall, 0.085s user_cpu, 0 io
-  llm_call("claude-3.5")   --> 3.0s wall, 0 tokens prompt, 200 tokens completion
-  io_call("write_json")    --> 0.005s wall, 0.001s user_cpu, 20KB io
+```bash
+pip install psutil
+```
 
-  +----------------------------------------------------------------+
-  |  analyse(session)                                              |
-  |                                                                |
-  |  cpu_work   = 0.015 + 0.085 + 0.001  = 0.101s                |
-  |  ai_work    = 2.5*6*100*500/1e12 + 3.0*6*100*200/1e12        |
-  |             = 0.75s + 0.36s = 1.11s  (standardized)           |
-  |  wait_time  = total_wall - cpu_work - ai_work (residual)      |
-  |  interpretation = "ai_heavy"  (ai_work > cpu_work)            |
-  +----------------------------------------------------------------+
+Verify that the profiling harness and baseline configurations are functional:
 
-lib/harness.py
-~~~~~~~~~~~~~~
+```python
+from lib.harness import MeasurementSession
+from lib.baselines import SPEC_CPU_2017
 
-A MeasurementSession provides a context manager API::
+print("Harness & baselines initialized successfully.")
+```
 
-  from lib.harness import MeasurementSession
+---
 
-  with MeasurementSession(name="my-task") as session:
-      with session.cpu_call("read_graph", category="file_read") as node:
-          data = read_graph("input/graph.csv")
-      with session.llm_call("gpt-4o", "explain",
-                            prompt_tokens=100,
-                            completion_tokens=50) as llm_node:
-          response = call_llm(llm_node.prompt)
-      summary = session.summary()
+## 📂 Project Layout
 
-Metrics tracked per node:
+```text
+agent-gauge/
+├── lib/
+│   ├── harness.py       # MeasurementSession: instrumented context managers
+│   ├── baselines.py     # Hardware baselines (SPEC CPU 2017, GPU FLOPS, LLM parameters)
+│   └── model.py         # Analytical model (decompose, standardize_to_cpu_equivalent)
+├── tasks/               # Three non-trivial reference tasks implemented in Python & C++
+│   ├── task1_dijkstra/  # Graph shortest-path with string nodes & undirected flags
+│   ├── task2_toc_generator/ # Markdown heading extractor & nested list builder
+│   └── task3_log_analyzer/  # High-throughput JSONL log analytics & statistics
+├── tests/               # 66-test verification suite (pytest)
+└── docs/                # Methodology, math, and baseline derivation details
+```
 
-  Metric            | Source                        | Unit
-  ------------------|-------------------------------|-------------
-  wall_clock        | time.perf_counter()           | seconds
-  user_cpu          | resource module               | seconds
-  system_cpu        | resource module               | seconds
-  total_cpu         | user + system                 | seconds
-  max_rss           | resource / /proc/self/status  | KiB
-  io_read_bytes     | /proc/self/io                 | bytes
-  io_write_bytes    | /proc/self/io                 | bytes
-  node_type         | explicit                      | "llm" / "cpu" / "io"
+The core libraries are written in pure Python 3 with minimal external dependencies (`psutil`). The reference tasks contain both Python and optimized, native C++17 implementations to demonstrate the profiling of different local performance tiers.
 
-LLM-specific: prompt_tokens, completion_tokens, latency, model, cost.
+---
 
-lib/baselines.py
-~~~~~~~~~~~~~~~~
+## 🏗️ Architecture
 
-Hardware and LLM reference data:
+AgentGauge operates by capturing an execution trace tree during an agent session and decomposing it into distinct resource domains.
 
-  - SPEC CPU 2017 rates (int_base, float_base, int_peak, float_peak)
-  - GPU specs (A100, H100, H200) with FP16/FP32/FP8 TFLOPS
-  - LLM models (GPT-4o, GPT-4o-mini, Claude 3.5 Sonnet, Llama 3.1 70B)
-  - Formula: flops_per_token(params, seq_length) = 6 * params * seq_length
-  - Cost-per-call estimation
+```text
+       +-----------------------------------------------------------+
+       |                  Agentic Coding Session                   |
+       |                                                           |
+       |  [Tool Call]    [LLM Call]    [Tool Call]    [LLM Call]   |
+       +-------+-------------+-------------+-------------+---------+
+               |             |             |             |
+               v             v             v             v
+       +-----------------------------------------------------------+
+       |               MeasurementSession (harness.py)             |
+       |                                                           |
+       | Tracks: wall_clock, user_cpu, system_cpu, RSS, I/O,       |
+       |         latency, model, prompt_tokens, completion_tokens  |
+       +-----------------------------+-----------------------------+
+                                     |
+                                     v
+                       +---------------------------+
+                       |    Nested Trace Tree      |
+                       +-------------+-------------+
+                                     |
+                                     v
+                       +---------------------------+
+                       |   decompose() (model.py)  |
+                       +------+-------------+------+
+                              |             |
+           +------------------+             +------------------+
+           |                                                   |
+           v                                                   v
++------------------------+                          +------------------------+
+|   Local CPU Work       |                          |   Remote AI/LLM Work   |
+|                        |                          |                        |
+| Sum of user + system   |                          | Estimated total FLOPs  |
+| execution times across |                          | (forward pass:         |
+| all local tool calls.  |                          |  6 * params * tokens)  |
++----------+-------------+                          +----------+-------------+
+           |                                                   |
+           |                                                   | [Projected using]
+           |                                                   | [SPEC CPU 2017 vs]
+           |                                                   | [GPU FLOPS ratio]
+           |                                                   v
+           |                                        +------------------------+
+           |                                        |  CPU-Equivalent Work   |
+           |                                        |                        |
+           |                                        | Standardized AI time   |
+           |                                        | projected onto target  |
+           |                                        | baseline CPU.          |
+           +------------------+             +------------------+
+                              |             |
+                              v             v
+                       +---------------------------+
+                       |      analyse() Summary     |
+                       |                           |
+                       |  - CPU Work (Seconds)     |
+                       |  - AI Work (Equivalent S) |
+                       |  - AI-to-CPU Ratio        |
+                       |  - Residual Wait Time     |
+                       +---------------------------+
+```
 
-lib/model.py
-~~~~~~~~~~~~
+---
 
-Composition model that decomposes total wall-clock time::
+## 📊 Data Flow & Analysis Example
 
-  total_wall_clock = cpu_work + ai_work + wait_time
+The following example demonstrates how a mixed local/remote agent trace is decomposed and normalized:
 
-Functions:
+```python
+from lib.harness import MeasurementSession
+from lib.model import analyse
 
-  - decompose(trace, rtt_estimate) -> dict
-  - standardize_to_cpu_equivalent(decomp, baseline_key) -> dict
-  - ai_cpu_ratio(decomp) -> dict with interpretation ("ai_heavy", "cpu_heavy", "balanced")
-  - analyse(trace, rtt_estimate, baseline_key) -> full pipeline
+# 1. Profile the session
+with MeasurementSession(name="agent-session") as session:
+    # Measure a local CPU tool call
+    with session.cpu_call("compile_and_test", category="subprocess"):
+        # Local system compilations, tests, and file system tasks are tracked here
+        import time
+        time.sleep(0.1) # Simulate tool execution
 
-Usage example
--------------
+    # Measure a remote LLM generative task
+    with session.llm_call(model="gpt-4o", prompt_tokens=500, completion_tokens=200) as node:
+        # Remote LLM parameters, network latency, and tokens are tracked here
+        node.latency = 2.5 # Simulate remote API round-trip
 
-::
+# 2. Analyze using an Intel Xeon Gold 6430 baseline ("int_base")
+result = analyse(session, rtt_estimate=0.08, baseline_key="int_base")
 
-  from lib.harness import MeasurementSession
-  from lib.model import analyse
+print(f"Total Wall-Clock: {result['total_wall_clock']:.2f}s")
+print(f"Local CPU Work:   {result['cpu_work']:.4f}s")
+print(f"Projected AI Work: {result['ai_work']:.2f} equivalent-seconds")
+print(f"Residual Wait:    {result['wait_time']:.2f}s (network RTT/idle)")
+print(f"Interpretation:   {result['interpretation']}") # e.g., "ai_heavy"
+```
 
-  with MeasurementSession(name="dijkstra-task") as session:
-      with session.cpu_call("dijkstra", category="algorithm") as node:
-          import time; time.sleep(0.1)
+---
 
-      with session.llm_call("gpt-4o", "solve this",
-                            prompt_tokens=500,
-                            completion_tokens=200) as llm:
-          llm.latency = 2.5  # simulate
+## 🛠️ Measurement Specifications
 
-  result = analyse(session, rtt_estimate=0.1)
-  print(result["total_wall_clock"])   # e.g. 2.62
-  print(result["cpu_work"])           # e.g. 0.10
-  print(result["ai_work"])            # e.g. 2.47
-  print(result["wait_time"])          # e.g. 0.05
-  print(result["interpretation"])     # e.g. "ai_heavy"
+| Metric | Captured Via | Scope | Target Dimension |
+| :--- | :--- | :--- | :--- |
+| **Wall Clock** | `time.perf_counter()` | Per-Node / Total | Elapsed temporal latency (seconds) |
+| **CPU User/Sys** | `resource.getrusage()` / `psutil` | Local Tool Nodes | Operating System process scheduling (seconds) |
+| **Memory RSS** | `/proc/self/status` / `psutil` | Local Tool Nodes | Peak physical memory utilization (KiB) |
+| **I/O Read/Write**| `/proc/self/io` | Local Tool Nodes | Disk block and file system throughput (bytes) |
+| **Token Counts** | Explicit Input / API response | LLM Call Nodes | LLM throughput (integer tokens) |
+| **FLOP Projection**| 6 $\times$ parameters $\times$ tokens | LLM Call Nodes | Quantitative remote mathematical operations |
 
-Tests
------
+---
 
-::
+## 🧪 Testing
 
-  pip install pytest
-  python -m pytest tests/ -v
+The library includes a thorough, high-coverage testing suite verifying harness safety, concurrent execution, trace serialization, model calculations, and the reference tasks.
 
-Run everything
---------------
+To run the full test suite:
 
-::
-
-  bash run_all.sh
+```bash
+python -m pytest tests/ -v
+```
