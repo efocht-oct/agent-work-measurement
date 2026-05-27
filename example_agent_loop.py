@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
-Agentic Developer Loop Simulation.
+Complex Agentic Developer Loop Simulation.
 
-This script demonstrates how to use AgentGauge to measure the *process* of
-an agent writing code, rather than just measuring the final code itself.
+This script demonstrates AgentGauge profiling a reasonably complex, 
+multi-turn agent workload. It simulates a heavy autonomous workflow:
+1. Planning (Context ingestion)
+2. Research (Vector DB search + synthesis)
+3. Implementation (Initial code generation)
+4. Debugging - Turn 1 (Stack trace analysis)
+5. Deep Debugging - Turn 2 (Tool execution & root cause analysis)
+6. Documentation (Writing READMEs & docstrings)
 
-It simulates a standard agentic workflow:
-1. Plan & Code (LLM)
-2. Run Tests - Fail (CPU)
-3. Debug & Fix (LLM)
-4. Run Tests - Pass (CPU)
+This highlights how the harness tracks both massive AI compute (LLM calls)
+and local CPU constraints (linters, test suites, documentation builds).
 """
 
 import time
@@ -23,32 +26,74 @@ from lib.model import analyse
 
 def main():
     print("==================================================")
-    print("Starting simulated agentic developer loop...")
+    print("Starting COMPLEX simulated agentic workflow...")
     print("==================================================")
     
-    with GaugeSession(name="agent-dev-loop") as session:
+    with GaugeSession(name="complex-agent-workflow") as session:
         
-        # 1. Agent reads the prompt, plans, and writes initial code
-        print("  [Agent] Reading issue, thinking, and writing initial code...")
-        with session.llm_call("gemini-1.5-pro", prompt_tokens=2500, completion_tokens=800):
-            time.sleep(3.5)  # Simulate network/inference latency
+        # --- Phase 1: Planning ---
+        print("\n[Phase 1: Planning]")
+        print("  [Agent] Ingesting large issue description and codebase context...")
+        with session.llm_call("gemini-1.5-pro", prompt_tokens=15000, completion_tokens=800):
+            time.sleep(4.5)  # Simulate network/inference latency
             
-        # 2. Agent executes the test suite in the local environment
+        # --- Phase 2: Research ---
+        print("\n[Phase 2: Research]")
+        print("  [Environment] Searching vector DB and retrieving file snippets...")
+        with session.cpu_call("vector_search", category="io"):
+            time.sleep(0.5) # Simulate IO/CPU time for search
+        
+        print("  [Agent] Synthesizing research and establishing architecture...")
+        with session.llm_call("gemini-1.5-pro", prompt_tokens=25000, completion_tokens=1200):
+            time.sleep(6.0)
+
+        # --- Phase 3: Implementation ---
+        print("\n[Phase 3: Implementation]")
+        print("  [Agent] Writing initial implementation...")
+        with session.llm_call("gemini-1.5-pro", prompt_tokens=8000, completion_tokens=2500):
+            time.sleep(8.0)
+        
+        print("  [Environment] Running compiler/linter...")
+        with session.cpu_call("run_linter", category="compute"):
+            for _ in range(2000000): pass # Simulated CPU burn
+            
         print("  [Environment] Running test suite (simulating failure)...")
-        with session.cpu_call("run_pytest_attempt_1", category="testing"):
-            # Simulate CPU work for running tests (e.g., parsing AST, running asserts)
-            # We use a simple sleep here, but in reality this would be subprocess.run(["pytest"])
-            for _ in range(5000000): pass 
+        with session.cpu_call("run_pytest_1", category="compute"):
+            for _ in range(8000000): pass 
+
+        # --- Phase 4: Debugging (Iteration 1) ---
+        print("\n[Phase 4: Debugging - Turn 1]")
+        print("  [Agent] Analyzing 500-line stack trace...")
+        with session.llm_call("gemini-1.5-pro", prompt_tokens=12000, completion_tokens=600):
+            time.sleep(3.5)
             
-        # 3. Agent reads the traceback and generates a fix
-        print("  [Agent] Analyzing traceback and generating fix...")
-        with session.llm_call("gemini-1.5-pro", prompt_tokens=3500, completion_tokens=200):
-            time.sleep(2.0)
-            
-        # 4. Agent runs tests again
+        print("  [Environment] Running test suite (simulating edge-case failure)...")
+        with session.cpu_call("run_pytest_2", category="compute"):
+            for _ in range(8000000): pass
+
+        # --- Phase 5: Deep Debugging (Iteration 2) ---
+        print("\n[Phase 5: Deep Debugging - Turn 2]")
+        print("  [Environment] Agent executes a debugger script to inspect memory...")
+        with session.cpu_call("run_debugger", category="compute"):
+            for _ in range(3000000): pass
+        
+        print("  [Agent] Finding root cause and applying final patch...")
+        with session.llm_call("gemini-1.5-pro", prompt_tokens=15000, completion_tokens=400):
+            time.sleep(3.0)
+
         print("  [Environment] Running test suite (simulating success)...")
-        with session.cpu_call("run_pytest_attempt_2", category="testing"):
-            for _ in range(5000000): pass
+        with session.cpu_call("run_pytest_3", category="compute"):
+            for _ in range(8000000): pass
+
+        # --- Phase 6: Documentation Writing ---
+        print("\n[Phase 6: Documentation]")
+        print("  [Agent] Updating README and writing docstrings...")
+        with session.llm_call("gemini-1.5-pro", prompt_tokens=20000, completion_tokens=1500):
+            time.sleep(7.5)
+            
+        print("  [Environment] Running mkdocs build to verify docs...")
+        with session.cpu_call("build_docs", category="compute"):
+            time.sleep(0.8)
 
     print("\n==================================================")
     print("Agentic Loop Measurement Results:")
