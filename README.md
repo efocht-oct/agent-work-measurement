@@ -8,7 +8,9 @@ An analytical framework and instrumented harness for estimating, measuring, and 
 
 **AgentGauge is not an autonomous coding agent.** It does not autonomously write code, search the web, or run git commands. 
 
-Instead, AgentGauge is a **measurement harness and analytical model** designed to be integrated into agentic systems (such as Claude Code, Codex, or custom developer loops). It profiles, logs, and analyzes where resources are actually spent during an agent session. 
+Instead, think of AgentGauge strictly as a **profiler** or a **stopwatch**. It is a passive measurement library you import into an *existing* agent to track what it's doing. 
+
+The examples provided in this repository (like `run_all_samples.py`) do not make real API calls to LLMs. They simply use `time.sleep()` to simulate waiting for a remote API response while running real local algorithms to generate measurable CPU load.
 
 ### Why do we need this?
 When an agent performs a software engineering task, it spends:
@@ -37,7 +39,31 @@ python run_all_samples.py
 
 ## 🔌 Instrumenting Your Own Agent
 
-To integrate AgentGauge into your own custom agent developer loop, wrap your agent's execution using `GaugeSession` context managers. Use `session.cpu_call()` around local tool executions (like running a compiler or `git` command) and `session.llm_call()` around API requests to your model providers.
+To integrate AgentGauge into your own custom agent developer loop, import the library and wrap your agent's real executions using `GaugeSession` context managers. 
+
+Unlike the simulations in this repo, you apply this to your **real** code, feeding it the actual token counts returned by your LLM provider.
+
+```python
+from lib.harness import GaugeSession
+import google.generativeai as genai
+import subprocess
+
+with GaugeSession(name="real-agent-run") as session:
+    
+    # 1. Wrap your REAL LLM call
+    with session.llm_call("gemini-1.5-pro") as track_node:
+        model = genai.GenerativeModel('gemini-1.5-pro')
+        response = model.generate_content("Fix this bug.")
+        
+        # Manually record the tokens actually used by the real API
+        track_node.prompt_tokens = response.usage_metadata.prompt_token_count
+        track_node.completion_tokens = response.usage_metadata.candidates_token_count
+
+    # 2. Wrap your REAL local tool execution
+    with session.cpu_call("run_pytest"):
+        # The harness passively profiles the CPU user/sys time taken by this process
+        subprocess.run(["pytest", "tests/"])
+```
 
 **Caveat on Hardware-Agnostic Profiling:** The framework currently uses theoretical FLOP projections (specifically, `6 * params * tokens`) to estimate the computational work of remote LLM calls. It does not use direct GPU hardware profiling (e.g., via NVML). This approach ensures that the measurement remains hardware-agnostic, though the metric is theoretical rather than empirical.
 
