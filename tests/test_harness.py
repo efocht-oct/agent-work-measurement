@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-TEST_DATA = ROOT / "tasks" / "task1_dijkstra" / "input" / "graph.csv"
+TEST_DATA = Path(__file__).resolve()
 
 
 def _dummy_work():

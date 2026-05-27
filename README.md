@@ -12,6 +12,15 @@ Instead, think of AgentGauge strictly as a **profiler** or a **stopwatch**. It i
 
 The examples provided in this repository (like `run_all_samples.py`) do not make real API calls to LLMs. They simply use `time.sleep()` to simulate waiting for a remote API response while running real local algorithms to generate measurable CPU load.
 
+## 💡 Artifacts vs. Process: What are we measuring?
+
+There is a crucial distinction between measuring an **artifact** and measuring the **agentic process**:
+
+1. **Measuring the Artifact (`tasks/task1...` to `task3...`)**: These reference tasks represent the *final code* an agent might write. Profiling them shows how efficient the resulting code is when it runs.
+2. **Measuring the Process (`tasks/task4_agent_loop_simulation/`)**: This represents the *labor* of the agent. To measure agentic work, you must instrument the developer loop: prompting, coding, testing, reading tracebacks, and debugging.
+
+AgentGauge is designed to measure the **Process**. The included `simulate_loop.py` script demonstrates how to wrap an agent's reasoning cycle (LLM calls) and its environment interactions (CPU calls) to quantify the total effort spent solving a problem.
+
 ### Why do we need this?
 When an agent performs a software engineering task, it spends:
 1. **Local/Non-AI CPU work**: Compiling code, running tests, traversing file systems, executing graph algorithms, parsing logs, and parsing syntax.
@@ -35,6 +44,7 @@ You can see a full evaluation pipeline in action by running the included `run_al
 
 ```bash
 python run_all_samples.py
+python tasks/task4_agent_loop_simulation/simulate_loop.py
 ```
 
 ## 🔌 Instrumenting Your Own Agent
@@ -77,10 +87,11 @@ agent-gauge/
 │   ├── harness.py       # GaugeSession: instrumented context managers
 │   ├── baselines.py     # Hardware baselines (SPEC CPU 2017, GPU FLOPS, LLM parameters)
 │   └── model.py         # Analytical model (decompose, standardize_to_cpu_equivalent)
-├── tasks/               # Three non-trivial reference tasks implemented in Python & C++
-│   ├── task1_dijkstra/  # Graph shortest-path with string nodes & undirected flags
-│   ├── task2_toc_generator/ # Markdown heading extractor & nested list builder
-│   └── task3_log_analyzer/  # High-throughput JSONL log analytics & statistics
+├── tasks/               # Reference tasks & simulations
+│   ├── task1_dijkstra/  # Artifact: Graph shortest-path
+│   ├── task2_toc_generator/ # Artifact: Markdown heading extractor
+│   ├── task3_log_analyzer/  # Artifact: High-throughput log analytics
+│   └── task4_agent_loop_simulation/ # Process: Simulated agentic developer loop
 ├── tests/               # 66-test verification suite (pytest)
 └── docs/                # Methodology, math, and baseline derivation details
 ```
