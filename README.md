@@ -29,14 +29,17 @@ Ensure you have the required system dependencies:
 pip install psutil
 ```
 
-Verify that the profiling harness and baseline configurations are functional:
+You can see a full evaluation pipeline in action by running the included `run_all_samples.py` script. This script executes a simulated agentic session across multiple reference tasks and prints a comprehensive work measurement breakdown:
 
-```python
-from lib.harness import GaugeSession
-from lib.baselines import SPEC_CPU_2017
-
-print("Harness & baselines initialized successfully.")
+```bash
+python run_all_samples.py
 ```
+
+## 🔌 Instrumenting Your Own Agent
+
+To integrate AgentGauge into your own custom agent developer loop, wrap your agent's execution using `GaugeSession` context managers. Use `session.cpu_call()` around local tool executions (like running a compiler or `git` command) and `session.llm_call()` around API requests to your model providers.
+
+**Caveat on Hardware-Agnostic Profiling:** The framework currently uses theoretical FLOP projections (specifically, `6 * params * tokens`) to estimate the computational work of remote LLM calls. It does not use direct GPU hardware profiling (e.g., via NVML). This approach ensures that the measurement remains hardware-agnostic, though the metric is theoretical rather than empirical.
 
 ---
 
