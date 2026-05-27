@@ -17,26 +17,86 @@ Quick start
   python -c "from lib.harness import MeasurementSession; print('harness OK')"
   python -c "from lib.baselines import SPEC_CPU_2017; print('baselines OK')"
 
-Architecture
-------------
+Project layout
+--------------
 
 ::
 
   agent-work-measurement/
   ├── lib/
-  │   ├── __init__.py
   │   ├── harness.py       # MeasurementSession, cpu_call, llm_call
   │   ├── baselines.py     # SPEC CPU 2017, GPU specs, LLM metadata
   │   └── model.py         # decompose, standardize, ratio
-  ├── tasks/
-  │   ├── task1_dijkstra/
-  │   ├── task2_toc_generator/
-  │   └── task3_log_analyzer/
-  ├── tests/
-  └── docs/
+  ├── tasks/               # 3 reference tasks (Python + C++)
+  │   ├── 1-dijkstra/      # Shortest-path on a weighted graph
+  │   ├── 2-toc-generator/ # Markdown TOC extractor
+  │   └── 3-log-analyzer/  # JSON-lines log statistics
+  ├── tests/               # 66 pytest tests
+  └── docs/                # Methodology and analysis notes
 
-The library is pure Python (stdlib + psutil) with no heavy external
-dependencies.  All baseline values are hardcoded constants.
+Architecture
+------------
+
+Here is the high-level architecture of how raw tool-call traces are
+converted into a CPU-vs-AI work breakdown:
+
+  +-----------------------------------------------------------------+
+  |  Agentic Coding Session                                         |
+  |                                                                 |
+  |  [Tool Call]  [LLM Call]  [Tool Call]  [LLM Call]  [IO Call]   |
+  |     |             |             |             |            |    |
+  +-----+-------------+-------------+-------------+------------+----+
+                                |
+                        +-------v--------+
+                        | Measurement-   |
+                        | Session (harn.)|  -- tracks per-node:
+                        |                |      wall_clock, user_cpu,
+                        |                |      system_cpu, rss, io,
+                        |                |      tokens, latency, cost
+                        +-------+--------+
+                                |
+                        +-------v--------+
+                        | Trace tree     |  -- nested TraceNode graph
+                        | (flattened)    |      with parent/child refs
+                        +-------+--------+
+                                |
+                        +-------v--------+
+                        |   decompose()  |  -- splits into:
+                        |   (model.py)   |      cpu_nodes, llm_nodes,
+                        |                |      wait_nodes
+                        +-------+--------+
+                                |
+              +-----------------+-----------------+
+              |                                   |
+    +---------v----------+              +---------v----------+
+    | standardize_to_    |              | ai_cpu_ratio()     |
+    | cpu_equivalent()   |              |                    |
+    |                    |              |  ai_heavy          |
+    |  cpu_work =        |              |  ai_heavy          |
+    |    total_cpu_secs  |              |  cpu_heavy         |
+    |                    |              |  balanced          |
+    |  ai_work =         |              +--------------------+
+    |    FLOP_estimate / |
+    |    baseline_flops  |
+    +--------------------+
+
+Data flow (single session):
+
+  cpu_call("read_file")    --> 0.02s wall, 0.015s user_cpu, 512KB io
+  llm_call("gpt-4o")       --> 2.5s wall, 0 tokens prompt, 500 tokens completion
+  cpu_call("dijkstra")     --> 0.10s wall, 0.085s user_cpu, 0 io
+  llm_call("claude-3.5")   --> 3.0s wall, 0 tokens prompt, 200 tokens completion
+  io_call("write_json")    --> 0.005s wall, 0.001s user_cpu, 20KB io
+
+  +----------------------------------------------------------------+
+  |  analyse(session)                                              |
+  |                                                                |
+  |  cpu_work   = 0.015 + 0.085 + 0.001  = 0.101s                |
+  |  ai_work    = 2.5*6*100*500/1e12 + 3.0*6*100*200/1e12        |
+  |             = 0.75s + 0.36s = 1.11s  (standardized)           |
+  |  wait_time  = total_wall - cpu_work - ai_work (residual)      |
+  |  interpretation = "ai_heavy"  (ai_work > cpu_work)            |
+  +----------------------------------------------------------------+
 
 lib/harness.py
 ~~~~~~~~~~~~~~
